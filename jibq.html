@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+    <title>HE记事本</title>
+<link rel="icon" type="image/x-icon" href="./guo.ico">
+  <link rel="apple-touch-icon" href="./guo.ico">
+
+    <style>
+
+
+        body {
+
+    font-family: Arial, sans-serif;
+
+
+    margin: 0;
+
+
+    padding: 0;
+
+
+    display: flex;
+
+
+    flex-direction: column;
+
+
+    align-items: center;
+
+
+    justify-content: center;
+
+
+    height: 100vh;
+
+
+}
+
+
+textarea {
+
+
+    width: 80%;
+
+
+    height: 60vh;
+
+
+    margin-bottom: 20px;
+
+
+}
+
+
+button {
+
+
+    margin: 5px;
+
+
+}
+
+        body {
+
+
+            font-family: Arial, sans-serif;
+
+
+            margin: 0;
+
+
+            padding: 0;
+
+
+            display: flex;
+
+
+            flex-direction: column;
+
+
+            align-items: center;
+
+
+            justify-content: center;
+
+
+            height: 100vh;
+
+
+        }
+
+
+        textarea {
+
+
+            width: 80%;
+
+
+            height: 60vh;
+
+
+            margin-bottom: 20px;
+
+
+        }
+
+
+        button {
+
+
+            margin: 5px;
+
+
+        }
+
+
+    </style>
+
+
+</head>
+
+
+<body>
+
+    <div>  
+    <textarea id="note" placeholder="你的笔记..."></textarea>
+<select id="noteSelector"></select>
+<button onclick="addNewNote()">新建笔记</button>
+<button onclick="saveNote()">保存笔记</button>
+<button onclick="loadNote()">加载笔记</button>
+<button onclick="deleteNote()">删除笔记</button>
+
+
+
+
+  </div>  
+
+
+    <script>
+
+// 新建笔记
+
+function addNewNote() {
+
+
+    const noteName = prompt('请输入新笔记的标签');
+
+
+    if (noteName) {
+
+
+        const notes = JSON.parse(localStorage.getItem('notes')) || [];
+
+
+        notes.push({ name: noteName, content: '' });
+
+
+        localStorage.setItem('notes', JSON.stringify(notes));
+
+
+        updateNoteSelector();
+
+
+        alert('新笔记已创建');
+
+
+    }
+
+
+}
+
+
+// 更新笔记选择框
+
+
+function updateNoteSelector() {
+
+
+    const notes = JSON.parse(localStorage.getItem('notes')) || [];
+
+
+    const noteSelector = document.getElementById('noteSelector');
+
+
+    noteSelector.innerHTML = '';
+
+
+    notes.forEach((note, index) => {
+
+
+        const option = document.createElement('option');
+
+
+        option.value = index;
+
+
+        option.textContent = note.name;
+
+
+        noteSelector.appendChild(option);
+
+
+    });
+
+
+}
+
+
+// 保存笔记
+
+
+function saveNote() {
+
+
+    const noteContent = document.getElementById('note').value;
+
+
+    const noteIndex = document.getElementById('noteSelector').value;
+
+
+    const notes = JSON.parse(localStorage.getItem('notes')) || [];
+
+
+    if (notes[noteIndex]) {
+
+
+        notes[noteIndex].content = noteContent;
+
+
+        localStorage.setItem('notes', JSON.stringify(notes));
+
+
+        alert('笔记已保存');
+
+
+    } else {
+
+
+        alert('请选择一个笔记');
+
+
+    }
+
+
+}
+
+
+// 加载笔记
+
+
+function loadNote() {
+
+
+    const noteIndex = document.getElementById('noteSelector').value;
+
+
+    const notes = JSON.parse(localStorage.getItem('notes')) || [];
+
+
+    if (notes[noteIndex]) {
+
+
+        document.getElementById('note').value = notes[noteIndex].content;
+
+
+        alert('笔记已加载');
+
+
+    } else {
+
+
+        alert('请选择一个笔记');
+
+
+    }
+
+
+}
+
+
+// 删除笔记
+
+
+function deleteNote() {
+
+
+    const noteIndex = document.getElementById('noteSelector').value;
+
+
+    const notes = JSON.parse(localStorage.getItem('notes')) || [];
+
+
+    if (notes[noteIndex]) {
+
+
+        notes.splice(noteIndex, 1);
+
+
+        localStorage.setItem('notes', JSON.stringify(notes));
+
+
+        updateNoteSelector();
+
+
+        document.getElementById('note').value = '';
+
+
+        alert('笔记已删除');
+
+
+    } else {
+
+
+        alert('请选择一个笔记');
+
+
+    }
+
+
+}
+
+
+// 初始化
+
+
+function init() {
+
+
+    updateNoteSelector();
+
+
+    if (document.getElementById('noteSelector').options.length > 0) {
+
+
+        document.getElementById('noteSelector').value = 0;
+
+
+        loadNote();
+
+
+    }
+
+
+}
+
+
+window.onload = init;
+
+
+
+
+    </script>
+
+    </script>
+</body>
+
+
+</html>
+

@@ -1,0 +1,33 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/x-icon" href="./guo.ico">
+  <link rel="apple-touch-icon" href="./guo.ico">
+<title>写笔记</title>
+
+<script >
+function download(){ 
+    var text = document.getElementById("my-textarea").value; //要保存的内容
+    if(text==""){
+        alert("没有内容可保存！");
+        return;
+    }
+    var blob = new Blob([text], { type: "text/plain"}); 
+    var anchor = document.createElement("a"); 
+    anchor.download = "日记2025.txt"; 
+    anchor.href = window.URL.createObjectURL(blob); 
+    anchor.target ="_blank"; 
+    anchor.style.display = "none"; // just to be safe! 
+    document.body.appendChild(anchor); 
+    anchor.click(); 
+    document.body.removeChild(anchor); 
+} 
+</script>
+</head>
+<body>
+<textarea id="my-textarea" rows="31" cols="61"></textarea> 
+<br>
+<button type="button" onclick="download()">储存</button>
+</body>
+</html>

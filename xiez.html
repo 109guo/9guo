@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+<link rel="icon" type="image/x-icon" href="./guo.ico">
+  <link rel="apple-touch-icon" href="./guo.ico">
+    <title>汉字书写练习</title>
+    <script src="js/hanzi-writer.min.js"></script>
+    <style>
+        .container {
+            text-align: center;
+            margin: 20px;
+        }
+        #character-target-div {
+            border: 1px solid #ddd;
+            margin: 20px auto;
+        }
+        .button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .input-group {
+            margin: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 50px;
+            text-align: center;
+        }
+        #confirmButton {
+            background-color: #007bff;
+        }
+        #confirmButton:hover {
+            background-color: #0056b3;
+        }
+        #status {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .loading {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>在线汉字书写Yi练习</h1>
+        <div class="input-group">
+            <input type="text" id="characterInput" 
+                   placeholder="汉字" 
+                   maxlength="1" 
+                   oninput="onCharacterInput()">
+            <button class="button" id="confirmButton" onclick="loadCharacter()">确认</button>
+        </div>
+        <br>
+        <button class="button" id="animateButton" onclick="showAnimation()" disabled>演示动画</button>
+        <button class="button" id="quizButton" onclick="startQuiz()" disabled>开始练习</button>
+        <br>
+        <div id="status"></div>
+        <div id="character-target-div"></div>
+    </div>
+ 
+    <script>
+        let writer = null;
+        let loadingTimeout = null;
+ 
+        function onCharacterInput() {
+            // 输入新字符时禁用功能按钮
+            document.getElementById('animateButton').disabled = true;
+            document.getElementById('quizButton').disabled = true;
+            
+            // 清除之前的状态和内容
+            hideStatus();
+            if (writer) {
+                document.getElementById('character-target-div').innerHTML = '';
+                writer = null;
+            }
+        }
+ 
+        function showStatus(message, type = 'loading') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = type;
+            statusDiv.style.display = 'block';
+            
+            if (type === 'loading') {
+                statusDiv.innerHTML = `<div class="loading-spinner"></div>${message}`;
+            } else {
+                statusDiv.textContent = message;
+            }
+ 
+            if (type === 'error') {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+ 
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+ 
+        function setButtonsEnabled(enabled) {
+            document.getElementById('animateButton').disabled = !enabled;
+            document.getElementById('quizButton').disabled = !enabled;
+            document.getElementById('confirmButton').disabled = !enabled;
+        }
+ 
+        async function loadCharacter() {
+            const character = document.getElementById('characterInput').value;
+            if (!character) {
+                showStatus('请输入一个汉字', 'error');
+                return;
+            }
+            await initWriter(character);
+        }
+ 
+        // 检查汉字是否成功渲染
+        function checkCharacterRendered() {
+            const targetDiv = document.getElementById('character-target-div');
+            
+            // 检查是否有SVG元素
+            const svgElement = targetDiv.querySelector('svg');
+            if (!svgElement) {
+                return false;
+            }
+            
+            // 检查SVG是否有实际的笔画路径
+            const pathElements = svgElement.querySelectorAll('path');
+            if (pathElements.length === 0) {
+                return false;
+            }
+            
+            // 检查路径是否有实际的绘制数据
+            for (let path of pathElements) {
+                const d = path.getAttribute('d');
+                if (d && d.trim() !== '') {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+ 
+        async function initWriter(character) {
+            setButtonsEnabled(false);
+            showStatus('正在加载汉字数据...请稍候');
+            
+            document.getElementById('character-target-div').innerHTML = '';
+ 
+            try {
+                // 先检查汉字数据是否存在
+                const charDataPromise = HanziWriter.loadCharacterData(character);
+                const timeoutPromise = new Promise((_, reject) => {
+                    loadingTimeout = setTimeout(() => {
+                        reject(new Error('加载超时，请重试'));
+                    }, 8000);
+                });
+ 
+                let charData;
+                try {
+                    charData = await Promise.race([charDataPromise, timeoutPromise]);
+                    if (!charData || !charData.strokes || charData.strokes.length === 0) {
+                        throw new Error('汉字数据不完整');
+                    }
+                } catch (error) {
+                    clearTimeout(loadingTimeout);
+                    throw new Error('抱歉，该汉字可能不存在或暂不支持');
+                }
+ 
+                // 创建writer实例
+                writer = HanziWriter.create('character-target-div', character, {
+                    width: 300,
+                    height: 300,
+                    padding: 5,
+                    showOutline: true
+                });
+ 
+                // 等待渲染完成并检查结果
+                await new Promise(resolve => setTimeout(resolve, 1000));
+ 
+                if (checkCharacterRendered()) {
+                    clearTimeout(loadingTimeout);
+                    showStatus('加载完成', 'success');
+                    setTimeout(hideStatus, 1000);
+                    setButtonsEnabled(true);
+                    return writer;
+                } else {
+                    throw new Error('抱歉，该汉字渲染失败或暂不支持');
+                }
+ 
+            } catch (error) {
+                clearTimeout(loadingTimeout);
+                showStatus(`${error.message}`, 'error');
+                document.getElementById('confirmButton').disabled = false;
+                console.error('加载失败:', error);
+                
+                // 清理可能的残留内容
+                document.getElementById('character-target-div').innerHTML = '';
+                writer = null;
+                return null;
+            }
+        }
+ 
+        async function showAnimation() {
+            if (writer) {
+                writer.animateCharacter();
+            } else {
+                showStatus('请先确认加载汉字', 'error');
+            }
+        }
+ 
+        async function startQuiz() {
+            if (writer) {
+                writer.quiz({
+                    onComplete: function(summaryData) {
+                        showStatus('练习完成！', 'success');
+                        setTimeout(hideStatus, 2000);
+                    }
+                });
+            } else {
+                showStatus('请先确认加载汉字', 'error');
+            }
+        }
+    </script>
+</body>
+</html>
