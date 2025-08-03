@@ -1,0 +1,27 @@
+<div id="footer">
+
+<script type="text/javascript">var cnzz_protocol = (("https:" == document.location.protocol) ? " https://" : " http://");document.write(unescape("%3Cspan id='cnzz_stat_icon_1253219218'%3E%3C/span%3E%3Cscript src='" + cnzz_protocol + "s4.cnzz.com/z_stat.php%3Fid%3D1253219218%26show%3Dpic' type='text/javascript'%3E%3C/script%3E"));</script>
+    </p>
+</div>
+
+<!-- 回到顶部 -->
+<script>
+lastScrollY=0;
+function heartBeat(){
+var diffY;
+if (document.documentElement && document.documentElement.scrollTop)
+    diffY = document.documentElement.scrollTop;
+else if (document.body)
+    diffY = document.body.scrollTop
+else
+    {/*Netscape stuff*/}
+percent=.1*(diffY-lastScrollY);
+if(percent>0)percent=Math.ceil(percent);
+else percent=Math.floor(percent);
+document.getElementById("full").style.top=parseInt(document.getElementById("full").style.top)+percent+"px";
+lastScrollY=lastScrollY+percent;
+}
+suspendcode="<div id=\"full\" style='right:1px;POSITION:absolute;TOP:600px;z-index:100'><a onclick='window.scrollTo(0,0);'><img src='./images/top.png'></a><br></div>"
+document.write(suspendcode);
+window.setInterval("heartBeat()",1);
+</script>
