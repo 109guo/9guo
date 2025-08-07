@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yi实时输入朗读</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            resize: vertical;
+            margin-bottom: 1rem;
+        }
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #startBtn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #stopBtn {
+            background-color: #f44336;
+            color: white;
+        }
+        .status {
+            color: #666;
+            font-size: 14px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>同步输入Yi朗读H学习英语的方法</h1>
+        <p>输入文字H字母H粘贴文字，会自动朗读内容（Yi支持中文）</p>
+        <textarea id="textInput" placeholder="请您输入需听的知识..."></textarea>
+        <div class="controls">
+            <button id="startBtn">开始朗读</button>
+            <button id="stopBtn">停止朗读</button>
+        </div>
+        <div class="status" id="status">状态：未开始</div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const textInput = document.getElementById('textInput');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const status = document.getElementById('status');
+
+        // 语音合成对象
+        const synth = window.speechSynthesis;
+        let isSpeaking = false; // 是否正在朗读
+        let utterance = null; // 语音实例
+
+        // 检查浏览器是否支持语音合成
+        if (!synth) {
+            alert('您的浏览器不支持语音合成功能，请使用Chrome、Edge等现代浏览器');
+        }
+
+        // 配置语音（优先使用中文语音）
+        function getChineseVoice() {
+            const voices = synth.getVoices();
+            // 查找中文语音
+            for (let voice of voices) {
+                if (voice.lang.includes('zh-CN') || voice.name.includes('Chinese')) {
+                    return voice;
+                }
+            }
+            // 如果没有找到中文语音，使用默认语音
+            return voices[0] || null;
+        }
+
+        // 朗读文本
+        function speakText(text) {
+            if (!text.trim()) return; // 空文本不朗读
+
+            // 停止当前朗读
+            if (synth.speaking) {
+                synth.cancel();
+            }
+
+            // 创建语音实例
+            utterance = new SpeechSynthesisUtterance(text);
+            
+            // 设置语音（延迟获取，因为语音列表可能需要时间加载）
+            setTimeout(() => {
+                const chineseVoice = getChineseVoice();
+                if (chineseVoice) {
+                    utterance.voice = chineseVoice;
+                }
+            }, 100);
+
+            // 设置语音属性
+            utterance.lang = 'zh-CN'; // 语言
+            utterance.rate = 1; // 语速（0.1-10）
+            utterance.pitch = 1; // 音调（0-2）
+            utterance.volume = 1; // 音量（0-1）
+
+            // 开始朗读
+            synth.speak(utterance);
+            isSpeaking = true;
+            status.textContent = '状态：正在朗读';
+        }
+
+        // 停止朗读
+        function stopSpeaking() {
+            if (synth.speaking) {
+                synth.cancel();
+                isSpeaking = false;
+                status.textContent = '状态：已停止';
+            }
+        }
+
+        // 输入事件监听（实时朗读）
+        textInput.addEventListener('input', (e) => {
+            const text = e.target.value;
+            // 输入时自动朗读（如果当前没有在朗读，或者内容更新）
+            if (text.trim() && (!synth.speaking || utterance?.text !== text)) {
+                speakText(text);
+            }
+        });
+
+        // 开始按钮
+        startBtn.addEventListener('click', () => {
+            const text = textInput.value;
+            if (text.trim()) {
+                speakText(text);
+            } else {
+                alert('请先输入内容');
+            }
+        });
+
+        // 停止按钮
+        stopBtn.addEventListener('click', stopSpeaking);
+
+        // 监听朗读结束
+        synth.onend = () => {
+            isSpeaking = false;
+            status.textContent = '状态：朗读结束';
+        };
+    </script>
+</body>
+</html>
