@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个性全屏音乐Yi播放图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            overflow: hidden;
+            height: 100vh;
+            color: #fff;
+            position: relative;
+        }
+
+        /* 背景容器 - 全屏时跟随播放器容器 */
+        .bg-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            transition: all 0.3s ease;
+        }
+
+        /* 背景图片轮播容器 */
+        .bg-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .bg-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        .bg-slide.active {
+            opacity: 1;
+        }
+
+        /* 背景遮罩层 */
+        .bg-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.8), rgba(22, 33, 62, 0.8), rgba(15, 52, 96, 0.8));
+            z-index: 1;
+        }
+
+        /* 全屏播放器容器 */
+        .player-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 2rem;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+
+        /* 全屏状态样式 */
+        .player-container.fullscreen-mode .progress-control,
+        .player-container.fullscreen-mode .control-buttons,
+        .player-container.fullscreen-mode .song-info {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+
+        .player-container.fullscreen-mode .lyrics-container {
+            transform: scale(1.2); /* 全屏时歌词放大 */
+            margin: 0;
+        }
+
+        /* 全屏状态下背景也全屏显示 */
+        .fullscreen-active .bg-container {
+            width: 100%;
+            height: 100%;
+            position: fixed;
+        }
+
+        /* 歌曲信息 */
+        .song-info {
+            text-align: center;
+            margin-bottom: 6rem;
+            z-index: 2;
+            transition: all 0.5s ease;
+        }
+
+        .song-title {
+            font-size: 2.8rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+        }
+
+        .song-singer {
+            font-size: 1.3rem;
+            color: #ccc;
+        }
+
+        /* 核心修改：左右单排歌词容器 */
+        .lyrics-container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 6rem;
+            z-index: 2;
+            transition: all 0.5s ease;
+        }
+
+        /* 左右歌词样式 */
+        .lyric-left {
+            width: 48%;
+            font-size: 1.5rem;
+            color: #aaa;
+            text-align: right;
+            transition: all 0.3s ease;
+            padding-right: 1rem;
+            border-right: 2px solid rgba(76, 201, 240, 0.3);
+        }
+
+        .lyric-right {
+            width: 48%;
+            font-size: 2.2rem;
+            color: #fff;
+            text-align: left;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
+            padding-left: 1rem;
+        }
+
+        /* 进度控制 */
+        .progress-control {
+            width: 100%;
+            max-width: 800px;
+            z-index: 2;
+            transition: all 0.5s ease;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: #4cc9f0;
+            border-radius: 3px;
+            width: 0%;
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.8rem;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        /* 控制按钮 */
+        .control-buttons {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+            z-index: 2;
+            transition: all 0.5s ease;
+        }
+
+        .btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: scale(1.1);
+            color: #4cc9f0;
+        }
+
+        .play-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(76, 201, 240, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+        }
+
+        /* 音量控制 */
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-left: 1rem;
+        }
+
+        .volume-icon {
+            font-size: 1.2rem;
+            color: #fff;
+        }
+
+        .volume-bar {
+            width: 80px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .volume-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: #4cc9f0;
+            border-radius: 2px;
+            width: 80%;
+        }
+
+        /* 全屏按钮样式 */
+        .fullscreen-btn {
+            font-size: 1.5rem;
+            margin-left: 1rem;
+        }
+
+        /* 背景装饰 */
+        .bg-decoration {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.2;
+        }
+
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(76, 201, 240, 0.1);
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .circle1 {
+            width: 300px;
+            height: 300px;
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .circle2 {
+            width: 200px;
+            height: 200px;
+            bottom: 20%;
+            right: 15%;
+            animation-delay: 2s;
+        }
+
+        .circle3 {
+            width: 150px;
+            height: 150px;
+            top: 50%;
+            right: 25%;
+            animation-delay: 4s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+            }
+            50% {
+                transform: translateY(-20px) translateX(15px);
+            }
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 768px) {
+            .song-title {
+                font-size: 2.2rem;
+            }
+            .lyrics-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .lyric-left, .lyric-right {
+                width: 100%;
+                text-align: center;
+                border: none;
+                padding: 0;
+            }
+            .lyric-left {
+                font-size: 1.2rem;
+            }
+            .lyric-right {
+                font-size: 1.8rem;
+            }
+            .control-buttons {
+                gap: 1rem;
+            }
+            .btn {
+                font-size: 1.5rem;
+            }
+            .play-btn {
+                width: 50px;
+                height: 50px;
+            }
+            .fullscreen-btn {
+                font-size: 1.2rem;
+            }
+            
+            .player-container.fullscreen-mode .lyrics-container {
+                transform: scale(1);
+            }
+        }
+
+        /* 全屏状态下的背景优化 */
+        ::-webkit-full-screen .bg-container {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        ::-moz-full-screen .bg-container {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        ::-ms-fullscreen .bg-container {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        :fullscreen .bg-container {
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+<body id="appBody">
+    <!-- 背景容器 - 独立容器确保全屏时背景保留 -->
+    <div class="bg-container">
+ <!-- 背景图片轮播容器 -->
+    <div class="bg-slider">
+        <div class="bg-slide active" style="background-image: url('https://gitee.com/yhe3/yi/raw/master/w/Y.jpg');"></div>
+        <div class="bg-slide" style="background-image: url('http://m.qpic.cn/psc?/V51llcpu1o4X023pVrjz2RLcIb0FPlXb/ory.eqC35Dq9FHJfzPXanHGvAYB4CnKa7PFJxWfblDM.PyYguVAPR6OtP6owEkPwnPgc1OYSO0biaRYvdT585A!!/b&bo=ngL2AQAAAAABFFg!&rf=viewer_4');"></div>
+        <div class="bg-slide" style="background-image: url('https://picsum.photos/id/1002/1920/1080');"></div>
+        <div class="bg-slide" style="background-image: url('https://picsum.photos/id/1003/1920/1080');"></div>
+    </div>
+        <!-- 背景遮罩层 -->
+        <div class="bg-overlay"></div>
+    </div>
+
+    <div class="player-container" id="playerContainer">
+        <!-- 背景装饰 -->
+        <div class="bg-decoration">
+            <div class="circle circle1"></div>
+            <div class="circle circle2"></div>
+            <div class="circle circle3"></div>
+        </div>
+
+        <!-- 歌曲信息 -->
+        <div class="song-info">
+            <h1 class="song-title">欣赏i悦听</h1>
+            <p class="song-singer">陈翔六点半主题曲：幸福</p>
+        </div>
+
+        <!-- 核心修改：左右单排歌词区域 -->
+        <div class="lyrics-container">
+            <div class="lyric-left" id="lyricLeft"> </div>
+            <div class="lyric-right" id="lyricRight">贺的：发现</div>
+        </div>
+
+        <!-- 进度控制 -->
+        <div class="progress-control">
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="time-display">
+                <span id="currentTime">00:00</span>
+                <span id="totalTime">04:29</span>
+            </div>
+        </div>
+
+        <!-- 控制按钮 -->
+        <div class="control-buttons">
+            <button class="btn prev-btn" title="上一曲">◀◀</button>
+            <button class="btn play-btn" id="playBtn" title="播放/暂停">▶</button>
+            <button class="btn next-btn" title="下一曲">▶▶</button>
+            
+            <!-- 音量控制 -->
+            <div class="volume-control">
+                <span class="volume-icon" id="volumeIcon">🔊</span>
+                <div class="volume-bar" id="volumeBar">
+                    <div class="volume-fill" id="volumeFill"></div>
+                </div>
+            </div>
+            
+            <!-- 全屏按钮 -->
+            <button class="btn fullscreen-btn" id="fullscreenBtn" title="全屏/退出全屏">⛶</button>
+        </div>
+
+        <!-- 音频元素 -->
+        <audio id="audioPlayer" src="https://raw.githubusercontent.com/h-9e/h/main/assets/he.mp3"></audio>
+    </div>
+
+    <script>
+        // 背景图片轮播功能
+        const bgSlides = document.querySelectorAll('.bg-slide');
+        let currentSlide = 0;
+        const slideInterval = 5000; // 每张图片显示5秒
+
+        function showSlide(index) {
+            bgSlides.forEach(slide => slide.classList.remove('active'));
+            bgSlides[index].classList.add('active');
+        }
+
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % bgSlides.length;
+            showSlide(currentSlide);
+        }
+
+        let slideTimer = setInterval(nextSlide, slideInterval);
+
+        // 歌词数据
+        const lyricsData = [
+            [0, " "],
+            [3, "怡❤贺"],
+            [5, "作词：懿"],
+            [7, "作曲；琴"],
+            [10, " "],
+            [15, "贺的"],
+            [18, "从出生那年就飘着"],
+            [22, "童年的荡秋千"],
+            [25, "随记忆一直晃到现在"],
+            [30, "heqiyi heqixin"],
+            [33, "nineteen"],
+            [38, "吹着前奏望着天空"],
+            [41, "我想起花瓣试着掉落"],
+            [46, "为你翘课的那一天"],
+            [49, "花落的那一天"],
+            [52, "教室的那一间"],
+            [55, "我怎么看不见"],
+            [60, "消失的下雨天"],
+            [63, "我好想再淋一遍"],
+            [68, "没想到失去的勇气我还留着"],
+            [73, "好想再问一遍"],
+            [76, "你会等待还是离开"],
+            [81, "刮风这天我试过握着你手"],
+            [85, "但偏偏雨渐渐"],
+            [88, "大到我看你不见"],
+            [92, "还要多久我才能在你身边"],
+            [96, "等到放晴的那天"],
+            [99, "也许我会比较好一点"],
+            [104, "从前从前有个人爱你很久"],
+            [108, "但偏偏风渐渐"],
+            [111, "把距离吹得好远"],
+            [115, "好不容易又能再多爱一天"],
+            [119, "但故事的最后你好像还是说了拜拜"],
+            [125, " "],
+            [130, "为你翘课的那一天"],
+            [133, "花落的那一天"],
+            [136, "教室的那一间"],
+            [139, "我怎么看不见"],
+            [144, "消失的下雨天"],
+            [147, "我好想再淋一遍"],
+            [152, "没想到失去的勇气我还留着"],
+            [157, "好想再问一遍"],
+            [160, "你会等待还是离开"],
+            [165, "刮风这天我试过握着你手"],
+            [169, "但偏偏雨渐渐"],
+            [172, "大到我看你不见"],
+            [176, "还要多久我才能在你身边"],
+            [180, "等到放晴的那天"],
+            [183, "也许我会比较好一点"],
+            [188, "从前从前有个人爱你很久"],
+            [192, "但偏偏风渐渐"],
+            [195, "把距离吹得好远"],
+            [199, "好不容易又能再多爱一天"],
+            [203, "但故事的最后你好像还是说了拜拜"],
+            [210, "刮风这天我试过握着你手"],
+            [214, "但偏偏雨渐渐"],
+            [217, "大到我看你不见"],
+            [221, "还要多久我才能够在你身边"],
+            [225, "等到放晴那天"],
+            [228, "也许我会比较好一点"],
+            [233, "从前从前有个人爱你很久"],
+            [237, "但偏偏风渐渐"],
+            [240, "把距离吹得好远"],
+            [244, "好不容易又能再多爱一天"],
+            [248, "但故事的最后你好像还是说了拜拜"],
+            [255, " "]
+        ];
+
+        // DOM元素获取
+        const audioPlayer = document.getElementById('audioPlayer');
+        const playBtn = document.getElementById('playBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const currentTimeEl = document.getElementById('currentTime');
+        const totalTimeEl = document.getElementById('totalTime');
+        // 替换为左右歌词元素
+        const lyricLeft = document.getElementById('lyricLeft'); 
+        const lyricRight = document.getElementById('lyricRight');
+        const volumeBar = document.getElementById('volumeBar');
+        const volumeFill = document.getElementById('volumeFill');
+        const volumeIcon = document.getElementById('volumeIcon');
+        // 全屏相关元素
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const playerContainer = document.getElementById('playerContainer');
+        const appBody = document.getElementById('appBody');
+        const bgContainer = document.querySelector('.bg-container');
+
+        // 格式化时间
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 更新播放进度
+        function updateProgress() {
+            const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+            progressFill.style.width = `${progress}%`;
+            currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+            syncLyrics();
+        }
+
+        // 核心修改：同步左右歌词
+        function syncLyrics() {
+            const currentTime = audioPlayer.currentTime;
+            let activeLineIndex = -1;
+
+            for (let i = 0; i < lyricsData.length; i++) {
+                const [time] = lyricsData[i];
+                if (time <= currentTime) {
+                    activeLineIndex = i;
+                } else {
+                    break;
+                }
+            }
+
+            if (activeLineIndex >= 0) {
+                // 左侧：上一句歌词
+                const prevIndex = Math.max(0, activeLineIndex - 1);
+                lyricLeft.textContent = lyricsData[prevIndex][1];
+                // 右侧：当前歌词
+                lyricRight.textContent = lyricsData[activeLineIndex][1];
+            } else {
+                lyricLeft.textContent = " ";
+                lyricRight.textContent = lyricsData[0][1];
+            }
+        }
+
+        // 播放/暂停切换
+        function togglePlay() {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                playBtn.textContent = '❚❚';
+            } else {
+                audioPlayer.pause();
+                playBtn.textContent = '▶';
+            }
+        }
+
+        // 进度条跳转
+        function seekProgress(e) {
+            const progressBarRect = progressBar.getBoundingClientRect();
+            const seekTime = ((e.clientX - progressBarRect.left) / progressBarRect.width) * audioPlayer.duration;
+            audioPlayer.currentTime = seekTime;
+        }
+
+        // 调节音量
+        function adjustVolume(e) {
+            const volumeBarRect = volumeBar.getBoundingClientRect();
+            const volume = (e.clientX - volumeBarRect.left) / volumeBarRect.width;
+            const clampedVolume = Math.max(0, Math.min(1, volume));
+            audioPlayer.volume = clampedVolume;
+            volumeFill.style.width = `${clampedVolume * 100}%`;
+            
+            if (clampedVolume === 0) {
+                volumeIcon.textContent = '🔇';
+            } else if (clampedVolume < 0.5) {
+                volumeIcon.textContent = '🔉';
+            } else {
+                volumeIcon.textContent = '🔊';
+            }
+        }
+
+        // 全屏切换功能
+        function toggleFullscreen() {
+            // 检查是否已经是全屏
+            if (!document.fullscreenElement) {
+                // 进入全屏 - 改为整个body全屏，确保背景也全屏
+                if (appBody.requestFullscreen) {
+                    appBody.requestFullscreen();
+                } else if (appBody.webkitRequestFullscreen) { // Safari
+                    appBody.webkitRequestFullscreen();
+                } else if (appBody.msRequestFullscreen) { // IE/Edge
+                    appBody.msRequestFullscreen();
+                }
+                fullscreenBtn.textContent = "⛷"; // 切换全屏图标
+            } else {
+                // 退出全屏
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                fullscreenBtn.textContent = "⛶"; // 切换回普通图标
+            }
+        }
+
+        // 更新全屏状态样式和图标
+        function updateFullscreenState() {
+            if (document.fullscreenElement) {
+                // 进入全屏：添加样式类，隐藏控制元素
+                playerContainer.classList.add('fullscreen-mode');
+                appBody.classList.add('fullscreen-active');
+                fullscreenBtn.textContent = "❤";
+                // 确保背景容器全屏显示
+                bgContainer.style.width = '100%';
+                bgContainer.style.height = '100%';
+            } else {
+                // 退出全屏：移除样式类，显示控制元素
+                playerContainer.classList.remove('fullscreen-mode');
+                appBody.classList.remove('fullscreen-active');
+                fullscreenBtn.textContent = "⛶";
+                // 恢复背景容器尺寸
+                bgContainer.style.width = '100vw';
+                bgContainer.style.height = '100vh';
+            }
+        }
+
+        // 监听全屏状态变化
+        document.addEventListener('fullscreenchange', updateFullscreenState);
+        document.addEventListener('webkitfullscreenchange', updateFullscreenState);
+        document.addEventListener('msfullscreenchange', updateFullscreenState);
+
+        // 全屏状态下的快捷键控制
+        document.addEventListener('keydown', (e) => {
+            if (document.fullscreenElement) {
+                // 全屏状态下的快捷键
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    togglePlay(); // 空格键播放/暂停
+                }
+                if (e.code === 'Escape') {
+                    // 按ESC退出全屏时自动恢复UI
+                    setTimeout(updateFullscreenState, 100);
+                }
+            }
+            
+            // 全局快捷键
+            if (e.code === 'F11') {
+                e.preventDefault();
+                toggleFullscreen();
+            }
+            if (e.code === 'Space' && !document.fullscreenElement) {
+                e.preventDefault();
+                togglePlay();
+            }
+        });
+
+        // 初始化播放器
+        function initPlayer() {
+            audioPlayer.addEventListener('loadedmetadata', () => {
+                totalTimeEl.textContent = formatTime(audioPlayer.duration);
+            });
+
+            audioPlayer.addEventListener('timeupdate', updateProgress);
+
+            audioPlayer.addEventListener('ended', () => {
+                playBtn.textContent = '▶';
+                progressFill.style.width = '0%';
+                audioPlayer.currentTime = 0;
+                syncLyrics();
+            });
+
+            playBtn.addEventListener('click', togglePlay);
+            progressBar.addEventListener('click', seekProgress);
+            volumeBar.addEventListener('click', adjustVolume);
+            // 绑定全屏按钮点击事件
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+            syncLyrics();
+        }
+
+        // 页面加载初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            initPlayer();
+            showSlide(0);
+        });
+    </script>
+</body>
+</html>
