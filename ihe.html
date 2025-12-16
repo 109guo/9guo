@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>琴的音樂曲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* 全屏容器，承载背景图 */
+        .container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            transition: background-image 2s ease-in-out; /* 丝滑的背景过渡 */
+            /* 初始背景图 */
+            background: url('https://picsum.photos/id/1001/1920/1080') no-repeat center center/cover;
+        }
+
+        /* 隐藏的音频标签 */
+        #audio {
+            display: none;
+        }
+
+        /* 播放列表样式：默认隐藏，左下角滑出 */
+        .music-list-container {
+            position: fixed;
+            bottom: 30px;
+            left: 0;
+            transform: translateX(-100%); /* 初始向左隐藏 */
+            transition: transform 0.5s ease-in-out; /* 滑出宽65高180/滑入动画 */
+            background-color: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 0 15px 15px 0;
+            padding: 20px;
+            width: 65px;
+            max-height: 180px;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+
+        /* 列表显示状态 */
+        .music-list-container.show {
+            transform: translateX(0); /* 滑出显示 */
+        }
+
+        /* 音乐列表样式 */
+        .music-list {
+            list-style: none;
+            color: white;
+        }
+
+        .music-list li {
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .music-list li:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* 当前播放的音乐样式 */
+        .music-list li.active {
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+
+        /* 列表触发区域：左下角小区域，可点击显示/隐藏列表 */
+        .list-trigger {
+            position: fixed;
+            bottom: 19px;
+            left: 0;
+            width: 8px;
+            height: 12px;
+            background-color: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(5px);
+            border-radius: 0 50% 50% 0;
+            cursor: pointer;
+            z-index: 99;
+            transition: background-color 0.3s ease;
+        }
+
+        .list-trigger:hover {
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+
+        /* 响应式调整：小屏幕下列表宽度自适应 */
+        @media (max-width: 768px) {
+            .music-list-container {
+                width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <!-- 音频标签（隐藏） -->
+        <audio id="audio"></audio>
+
+        <!-- 列表触发按钮：左下角小圆圈 -->
+        <div class="list-trigger" id="listTrigger"></div>
+
+        <!-- 音乐播放列表（默认隐藏） -->
+        <div class="music-list-container" id="musicListContainer">
+            <ul class="music-list" id="musicList">
+                <li data-src="https://raw.githubusercontent.com/h-9e/h/main/assets/he.mp3" class="active">飞翔 - 网络</li>
+                <li data-src="you.MP3">幸福的 - 主题曲</li>
+                <li data-src="街角的晚风.flac">街角的晚风 - 粤语</li>
+                <li data-src="jingwei.flac">Dj - 精卫</li>
+                <li data-src="心之火.flac">动漫 - 火</li>
+                <li data-src="https://music.163.com/song/media/outer/url?id=167876">成都 - 和</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 元素获取
+        const container = document.getElementById('container');
+        const audio = document.getElementById('audio');
+        const musicList = document.getElementById('musicList');
+        const musicListContainer = document.getElementById('musicListContainer');
+        const listTrigger = document.getElementById('listTrigger');
+
+        // 背景图数据：智能自动轮播
+        const bgImages = [
+            'i.jpg', // 怡
+            '11.jpg', // 海
+            '33.jpg', // 森
+            'ih.jpg', // 馨
+            'ixh.jpg', // HE
+            'https://picsum.photos/id/1006/1920/1080', // 自然
+            'https://picsum.photos/id/1008/1920/1080'  // 山水
+        ];
+        let currentBgIndex = 0; // 当前背景图索引
+        const bgAutoIntervalTime = 9000; // 背景自动切换时间：9秒
+        let bgAutoInterval = null; // 背景自动切换定时器
+
+        // 音乐数据：从列表中提取
+        const musics = Array.from(musicList.children).map(item => ({
+            src: item.dataset.src,
+            name: item.textContent
+        }));
+        let currentMusicIndex = 0; // 当前播放的音乐索引
+        const musicAutoPlay = true; // 是否开启自动播放音乐
+        let isListShow = false; // 列表是否显示
+
+        // ---------------------- 背景图相关逻辑 ----------------------
+        // 切换背景图
+        function changeBg(index) {
+            container.style.backgroundImage = `url(${bgImages[index]})`;
+            currentBgIndex = index;
+        }
+
+        // 下一张背景图
+        function nextBg() {
+            currentBgIndex = (currentBgIndex + 1) % bgImages.length;
+            changeBg(currentBgIndex);
+        }
+
+        // 启动背景图自动轮播
+        function startBgAutoPlay() {
+            bgAutoInterval = setInterval(() => {
+                nextBg();
+            }, bgAutoIntervalTime);
+        }
+
+        // ---------------------- 音乐相关逻辑 ----------------------
+        // 初始化音乐（切换音乐）
+        function initMusic(index) {
+            // 更新列表选中状态
+            Array.from(musicList.children).forEach((item, i) => {
+                item.classList.toggle('active', i === index);
+            });
+
+            const music = musics[index];
+            audio.src = music.src;
+            currentMusicIndex = index;
+            // 尝试自动播放
+            if (musicAutoPlay) {
+                playMusic();
+            }
+        }
+
+        // 播放音乐（处理浏览器自动播放限制）
+        function playMusic() {
+            audio.play().then(() => {
+                console.log('音乐播放成功');
+            }).catch(err => {
+                // 若自动播放失败，监听用户第一次点击页面后播放
+                document.addEventListener('click', () => {
+                    audio.play().then(() => {
+                        console.log('用户交互后音乐播放成功');
+                    }).catch(err => {
+                        console.log('音乐播放失败:', err);
+                    });
+                }, { once: true }); // 只监听一次点击
+                console.log('自动播放失败，等待用户交互后播放:', err);
+            });
+        }
+
+        // 下一首音乐（当前音乐播放完毕后自动切换）
+        function nextMusic() {
+            currentMusicIndex = (currentMusicIndex + 1) % musics.length;
+            initMusic(currentMusicIndex);
+        }
+
+        // ---------------------- 播放列表相关逻辑 ----------------------
+        // 切换列表显示/隐藏状态
+        function toggleMusicList() {
+            isListShow = !isListShow;
+            musicListContainer.classList.toggle('show', isListShow);
+        }
+
+        // 点击列表项切换音乐
+        function selectMusic(e) {
+            if (e.target.tagName === 'LI') {
+                const index = Array.from(musicList.children).indexOf(e.target);
+                initMusic(index);
+            }
+        }
+
+        // ---------------------- 事件绑定与初始化 ----------------------
+        // 监听音乐播放完毕事件，自动切换下一首
+        audio.addEventListener('ended', nextMusic);
+
+        // 点击触发区域切换列表显示/隐藏
+        listTrigger.addEventListener('click', toggleMusicList);
+
+        // 点击列表项切换音乐
+        musicList.addEventListener('click', selectMusic);
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', () => {
+            // 启动背景自动轮播
+            startBgAutoPlay();
+            // 初始化并播放第一首音乐
+            initMusic(0);
+        });
+    </script>
+</body>
+</html>
