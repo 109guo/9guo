@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>听睡觉前故事</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind自定义颜色和字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0F52BA',
+                        secondary: '#5B8FB9',
+                        neutral: '#333333',
+                        light: '#F5F5F5',
+                        dark: '#1A1A1A'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        serif: ['Georgia', 'Cambria', 'serif'],
+                        mono: ['Courier New', 'monospace']
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .focus-visible-outline {
+                @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+            }
+            .skip-link {
+                @apply absolute top-0 left-0 -translate-y-full bg-primary text-white px-4 py-2 z-50 transition-transform duration-300 focus:translate-y-0;
+            }
+            .article-prose {
+                @apply max-w-4xl mx-auto text-lg leading-relaxed; /* 优化内容居中显示 */
+            }
+            .article-prose p {
+                @apply mb-6;
+            }
+            .article-prose h2 {
+                @apply text-2xl md:text-3xl font-bold mt-10 mb-6 text-primary;
+            }
+            .article-prose h3 {
+                @apply text-xl md:text-2xl font-semibold mt-8 mb-4 text-primary/90;
+            }
+            .article-prose blockquote {
+                @apply border-l-4 border-secondary pl-4 italic my-6 text-neutral/80;
+            }
+            .high-contrast {
+                --color-text: #FFFFFF !important;
+                --color-bg: #000000 !important;
+                --color-primary: #FFFF00 !important;
+                --color-secondary: #FFA500 !important;
+                --color-border: #FFFFFF !important;
+            }
+            .font-serif-mode {
+                font-family: Georgia, Cambria, serif !important;
+            }
+            .font-sans-mode {
+                font-family: Inter, system-ui, sans-serif !important;
+            }
+            .font-mono-mode {
+                font-family: Courier New, monospace !important;
+            }
+            /* 满屏文字适配样式 */
+            .full-width-content {
+                @apply w-full max-w-none;
+            }
+        }
+    </style>
+</head>
+
+
+    <!-- 页面头部 -->
+    <header class="bg-white shadow-sm sticky top-0 z-40 transition-colors duration-300" role="banner">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center mb-4 md:mb-0">
+
+           
+                
+                <!-- 无障碍控制工具栏（已移除书签按钮） -->
+                <div class="flex flex-wrap gap-2 md:gap-3 items-center justify-center">
+                    <div class="bg-gray-100 p-1 rounded-md flex">
+                        <button id="font-decrease" class="p-2 rounded hover:bg-gray-200 focus-visible-outline" aria-label="减小字体">
+                            <i class="fa fa-font" aria-hidden="true"></i> A-
+                        </button>
+                        <button id="font-reset" class="p-2 rounded hover:bg-gray-200 focus-visible-outline" aria-label="重置字体大小">
+                            <i class="fa fa-refresh" aria-hidden="true"></i>
+                        </button>
+                        <button id="font-increase" class="p-2 rounded hover:bg-gray-200 focus-visible-outline" aria-label="增大字体">
+                            <i class="fa fa-font" aria-hidden="true"></i> A+
+                        </button>
+                    </div>
+                    
+                    <div class="bg-gray-100 p-1 rounded-md flex">
+                        <button id="font-sans" class="p-2 rounded hover:bg-gray-200 focus-visible-outline" aria-label="无衬线字体">
+                            <i class="fa fa-font" aria-hidden="true"></i> 无衬线
+                        </button>
+                        <button id="font-serif" class="p-2 rounded hover:bg-gray-200 focus-visible-outline" aria-label="衬线字体">
+                            <i class="fa fa-font" aria-hidden="true"></i> 衬线
+                        </button>
+                        <button id="font-mono" class="p-2 rounded hover:bg-gray-200 focus-visible-outline" aria-label="等宽字体">
+                            <i class="fa fa-font" aria-hidden="true"></i> 等宽
+                        </button>
+                    </div>
+                    
+                    <button id="high-contrast" class="p-2 bg-gray-100 rounded hover:bg-gray-200 focus-visible-outline" aria-label="切换高对比度模式">
+                        <i class="fa fa-adjust" aria-hidden="true"></i>
+                    </button>
+                    
+                    <button id="read-aloud" class="p-2 bg-gray-100 rounded hover:bg-gray-200 focus-visible-outline" aria-label="开始朗读文章">
+                        <i class="fa fa-volume-up" aria-hidden="true"></i>
+                    </button>
+                    
+                    <button id="stop-reading" class="p-2 bg-gray-100 rounded hover:bg-gray-200 focus-visible-outline hidden" aria-label="停止朗读">
+                        <i class="fa fa-volume-off" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    
+
+    <!-- 主要内容区域（满屏文字布局） -->
+    <main id="main-content" class="container mx-auto px-4 py-8 full-width-content" role="main">
+        <!-- 移除侧边栏网格，改为全屏文章布局 -->
+        <article class="bg-white rounded-lg shadow-sm p-6 md:p-10 transition-colors duration-300">
+            <header class="mb-8">
+                <h1 class="text-3xl md:text-4xl font-bold mb-4 text-primary">数字：让机会更多</h1>
+                
+                <div class="flex flex-wrap items-center text-neutral/70 text-sm mb-6 gap-x-6 gap-y-2">
+                    <div class="flex items-center">
+                        <i class="fa fa-user mr-2" aria-hidden="true"></i>
+                        <span>作者：❤️怡</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fa fa-calendar mr-2" aria-hidden="true"></i>
+                        <time datetime="2023-10-15">发布日期：2025年12月18日</time>
+                    </div>
+                    <div class="flex items-center">
+     
+                     
+                
+                <figure class="mb-8">
+ 
+            <div id="article-content" class="article-prose">
+                <p>嘿，小大人，忙碌一天结束啦，快钻进被窝放松下。今晚，带你踏入神秘的时间裂缝，里面藏着不同时代的秘密。一位勇敢的少女孩意外闯入，为了回家，他不得不开启一场冒险。在这场冒险里，他会遇到什么难题，又能否成功呢？躺好，故事开场咯。六年级学生适合听的睡前故事（15篇），欢迎阅读与借鉴，希望对你们有帮助！
+
+　　
+1.六年级学生适合听的睡前故事 篇一
+　　猪宝宝花钱总是大手大脚的.，这天，它又找猪妈妈要钱啦！
+
+　　它说：“妈妈妈妈，快给我2块钱吧！”
+
+　　猪妈妈说：“怎么又要钱？要钱干什么？”
+
+　　猪宝宝说：“买玩具，同学们都有，那个玩具蛋，里面还有小汽车，可好玩儿啦！”
+
+　　猪妈妈却说：“不给，买这个干什么？”
+
+　　猪宝宝不高兴：“哼！妈妈真小气！不就是2块钱吗？”
+
+　　猪妈妈听了，想了想，说：“孩子，妈妈带你去个地方。”
+
+　　猪宝宝跟着猪妈妈，来到了菜市场，阳光真大，真晒，原来，猪妈妈带着猪宝宝卖菜，这就是猪妈妈平时每天干的活儿。
+
+　　它们一起吆喝着，一天下来，嗓子都喊得冒烟了，皮肤也晒的好红好疼，终于才挣了二十块。
+
+　　回到家，猪宝宝说：“妈妈，我再也不乱花钱了，这些钱来的真不容易！”
+
+　　猪妈妈欣慰的笑了。
+
+　　
+
+2.六年级学生适合听的睡前故事 篇二
+　　从前，有一间用糖果盖起来的小房子。
+
+　　房子里住着一位巧克力爷爷和一位糖奶奶。巧克力爷爷最喜欢糖奶奶了，糖奶奶说，她也非常喜欢巧克力爷爷。巧克力爷爷和糖奶奶在一起，总是有说不完的话。说啊，说啊，他们的话都像蜂蜜一样甜滋滋的。
+
+　　可有的时候，他们也会吵架。吵架时，他们也有说不完的`话。不过，这时候他们的话就像冰块一样冷冰冰的。
+
+　　有一天，巧克力爷爷和糖奶奶大吵了一架。糖奶奶气得走出了家门，她在门外呜呜地哭了起来。糖奶奶不敢掉太多眼泪，因为哭的时间太长了，她会化成糖水的。糖奶奶看了看身边，那里刚好有些石头，于是……
+
+　　糖奶奶用这些石头盖了一座小房子。糖奶奶很喜欢她的石头房子，不过她最喜欢的，还是巧克力爷爷！
+
+　　糖奶奶回到糖果房子门前，冲着大门说道：“巧克力爷爷，开开门吧！巧克力爷爷，我们和好吧！”可惜，巧克力爺爷什么也没听到。糖奶奶又伤心地哭起来。
+
+　　
+
+3.六年级学生适合听的睡前故事 篇三
+　　一天，天气晴朗，万里无云，火辣辣的太阳烤着大地。
+
+　　小花狗到湖边玩，它看见白鹅在湖里悠闲地游来游去。小花狗把前脚伸进湖里，“啊！湖水冰冰凉凉，真舒服。”
+
+　　小花狗也想下去游泳，可它不会游泳，怎么办呢？小花狗决定学游泳，小花狗对白鹅说：“白鹅姐姐，教我学游泳吧！”
+
+　　白鹅爽快地答应了。白鹅说：“学游泳很简单，你把脚伸进湖里，使劲甩来甩去就可以了。”就完，白鹅把小花狗驮到了湖中央，小花狗从白鹅身上滑了下来。
+
+　　小花狗把脚在湖里甩来甩去，可是身子直往下沉，水淹到了它的嘴和鼻子。
+
+　　白鹅连忙游过去把它驮到了岸上，可是小花狗还是灌了一肚子水，肚子鼓得像皮球。
+
+　　小花狗又看见青蛙在游泳，它觉得青蛙游得很漂亮。小花狗对青蛙说：“青蛙哥哥，教我学游泳吧！”
+
+　　青蛙高兴地答应了，说：“学游泳很容易，讲究四肢协调，动作优美，只要四条脚往后一蹬，向前猛地一跳，就行了。”
+
+　　小花狗照青蛙说的去做了，只听“扑通”一声，小花狗掉到了湖里。青蛙看见了连忙游过去，可是青蛙太小了，他们救不起小狗。小狗的身体直往下沉，它四肢乱蹬，奋力挣扎。
+
+　　大水牛看到了就在岸边喊：“对了，小花狗，就是这样，你自己游过来吧！”
+
+　　小花狗拼命的东扭西扭，姿势虽然难看，但是很快游到了岸边。
+
+　　小花狗终于用自己的办法学会了游泳。
+
+　　
+
+4.六年级学生适合听的睡前故事 篇四
+　　落叶簌簌的落下来，满地金黄，小兔子轻快地踩在上面，发出轻轻地脆响。
+
+　　走着走着，突然碰见了一只大灰狼。
+
+　　大灰狼笑嘻嘻的说：“哟！是小兔子，你这是要干什么去？我煮了好菜，快进来尝尝吧！”
+
+　　小兔子听了，想了想，说：“谢谢您的好意，可是狮子大哥和大象伯伯约了我上它们家吃饭呢！要是知道我来你这儿了，肯定不高兴的！”
+
+　　大灰狼听了，暗想：“算了，狮子和大象我可惹不起。”
+
+　　于是它说：“好吧好吧！你快上路吧！狮子和大象该着急啦！”
+
+　　小兔子点点头，说：“好的！再见啦！”
+
+　　说着，就蹦蹦跳跳的走了。
+
+　　眼看着煮熟的鸭子飞了，大灰狼既懊恼又无奈。
+
+　　
+
+5.六年级学生适合听的睡前故事 篇五
+　　啄木鸟住在一棵高大的枫树上，他在树上搭了一座绚丽多彩的房子。他和枫树是好邻居，啄木鸟帮枫树抓虫子，枫树给啄木鸟提供住所。
+
+　　一天，啄木鸟对他的好邻居枫树说：“我要去一个很远的地方为一个好朋友治病，不过，明年的春天我会再回来的。”话一说完就急匆匆地飞走了。
+
+　　没有啄木鸟的陪伴，枫树十分想念他，就连饭都吃不下了。一天，他忽然发现自己身上有一种刺痛的感觉，他觉得是自己不吃饭导致的，所以没有在意。过了几天，他偶然发现身上有一个虫洞，这才意识到这刺痛不是因为不吃饭导致的，而是身上有虫子。就这样，枫树一天又一天地饱受折磨，他已经不再像以前那样有精神，那样茂盛了。
+
+　　春天悄悄地来了，啄木鸟带着他的诺言伴随着春天一起回来了，他看到枫树担心地问：“好邻居你这是怎么了？”枫树病恹恹地对啄木鸟说：“前段时间一群虫子在我的'身体里窜来窜去，让我饱受煎熬，你来得正好，快帮我治治病吧。”
+
+　　啄木鸟抓住了树干，用长长的嘴伸进虫洞，抓出一条又一条的大肥虫。过了好些日子，枫树又像以前那样茂盛了。
+
+　　从此，他们继续过着幸福的生活。
+
+　　
+
+6.六年级学生适合听的睡前故事 篇六
+　　在蔚蓝色的海洋里，生活着许多鱼类。有一天，海洋里的游泳高手金枪鱼和旗鱼碰面了，它们聊了起来。
+
+　　“金枪鱼，我们都是游泳高手，游泳速度非常快，不如我们去旅行吧！听说远方的景色非常美。”旗鱼说。
+
+　　“好呀！我们一起去吧！我也想去远方看看。”金枪鱼说。
+
+　　“你们可以带上我吗？”一只细小的'鮣鱼游了过来。
+
+　　“带上你？你不是在开玩笑吧！”旗鱼不屑一顾地说。
+
+　　“我当然没有开玩笑，因为我常去千里之外旅行。”鱼认真地回答。
+
+　　“哈哈，看你平时那么懒散，游泳能力那么差，根本游不了多远，怎么可能常去千里之外旅行呢？你就别吹牛了吧！”金枪鱼一阵讥笑。
+
+　　“哈哈，我相信鮣鱼常去千里之外旅行，不过它是在梦里。”旗鱼的话，惹得附近的海洋动物们哈哈大笑。
+
+　　“鮣鱼，你做一个美梦就可以了，所以没必要跟着我们千辛万苦一起游到远方去旅行了。”金枪鱼说完，就跟旗鱼一起冲了出去。它们闪电一样的速度，引得周围的动物伙伴们一阵赞叹！
+
+　　金枪鱼和旗鱼边游边玩，领略大洋深处的美好景色。没用几天，它们就游到了千里之外的地方。
+
+　　“金枪鱼，旗鱼，我们又见面了。”想同金枪鱼和旗鱼一起去远方旅行的鱼，突然出现在它们面前。
+
+　　“怎么会是你？这怎么可能？”金枪鱼表示难以相信。
+
+　　“会不会我们游了几千里，却是在原地打转呀？”旗鱼问。
+
+　　“绝对没有，我们之前是在印度洋碰上想旅行的鱼的，这儿是太平洋。鮣鱼，你能告诉我们，你的游泳速度是怎么一下子变快的吗？”金枪鱼问。
+
+　　“哈哈，其实我的游泳速度还是那么慢，只不过我有绝招，我有一个大吸盘，吸在游泳速度快的动物身上后，它们会带着我去远方旅行。”鮣魚解释。
+
+　　“鮣鱼，不费吹灰之力，不用游泳，就能外出旅行，真是太厉害啦！”旗鱼再也不敢小瞧鱼了。
+
+　　“真是不一样的旅行家！”金枪鱼赞叹。
+
+　　
+
+7.六年级学生适合听的睡前故事 篇七
+　　草地上有一朵美丽的小花。它长得漂亮极了！粉嫩的花瓣上滚着晶莹的露珠，而且，香味芬芳扑鼻。它以为它是世界上最最漂亮的。
+
+　　有一天，小象从小花身边走过。小花看见小象，就唱到：“小象，小象，长鼻子、长牙齿、胖身体，是个丑八怪！”小象撅了撅嘴，转身就走了。
+
+　　小猴一蹦一跳地从小花身边过，小花立刻唱起：“小猴，小猴；红臀部；长尾巴；大眼睛；真难看呀！”小猴摇了摇脑袋，扭头就走了。
+
+　　小兔也经过小花身边，小花见了小兔就唱：“小兔，小兔；红眼睛；短尾巴；白皮毛；是个大雪球！”小兔听了，哭着跑回了家。
+
+　　忽然，下起大雨来。泥土溅在了小花的花瓣上，原本鲜艳、漂亮的小花却变成了张兮兮的.小泥花。
+
+　　雨停了，小猴拿来一面镜子放在小花面前。小花见了镜子里自己的模样真难看！不好意思地低下了头，红着脸，说：“我不应该这么骄傲，这么没礼貌！”
+　　
+　　
+
+8.六年级学生适合听的睡前故事 篇八
+　　森林里贴出一张通知：订于月亮很圆很圆的晚上，举办欢乐晚会，欢迎大家参加。
+
+　　大象看见了：“噢，开欢乐晚会，唱歌很欢乐，跳舞很欢乐。唱歌跳舞是小动物的事，我可不参加。这样吧，我去帮他们布置会场吧。”大象想到这里，就去为晚会做预备了。
+
+　　大象把河边的草地打扫得干洁净净，拔去杂草，搭起架子，挂上彩纸，还在四周种上了鲜花。他整整忙了两天，看看布置一新的`草地，很满意，同时也感到很疲劳，便打了一个呵欠，躺下来睡着了。
+
+　　晚上，月亮出来了，很圆很圆。噢！欢乐晚会要在今夜进行。小动物们穿着漂亮的服装，纷纷来到小河边。
+
+　　呀！他们发觉大象睡着了。“得让他醒来，否则就不能参加晚会了。”小白兔着急地说。
+
+　　“大象还没换衣服，他身上多脏。”松鼠说。
+
+　　小动物们急坏了，现在到哪儿去为大象寻一件特别大的服装呢。
+
+　　“动动脑筋，我们会有方法的。”小狐狸边说边用他那毛茸茸的大尾巴，掸去大象身上的泥土。大象呼噜噜地睡得正香。
+
+　　“我们为大象预备帽子。”小鸭们嘎嘎叫着，下河摘荷叶，扎一扎，把它戴在大象头上，大象还是睡得很香。
+
+　　“我们为大象预备衣服。”小鸟飞进森林，衔来一片片绿叶，把它贴在大象身上，大象仍然没有醒。
+
+　　小动物们商量得喊醒他了，就齐声大喊：“大象大象快醒来，晚会就要开始啦1”
+
+　　大象扇扇大耳朵，醒了。看看四周，是一群小动物；瞧瞧天上，圆圆的月亮正挂在当空。噢，今晚要开欢乐晚会的呀。
+
+　　“大象，你穿得这么漂亮，一定预备了很精彩的节目。”小动物们调皮地问。
+
+　　大象看看自己身上，果然穿戴得很漂亮。啊，一定是小动物们帮他预备的。
+
+　　“我不会演节目。”大象不安地说。
+
+　　“没关系，和我们一起跳舞吧。”小动物们说，“只要你跳得快乐，感到欢乐就行，谁也不会笑话你的。”
+
+　　大象真的和小动物们跳起来了，他扭着粗笨的身子，感到很别扭，可心里却很欢乐。
+
+　　
+
+9.六年级学生适合听的睡前故事 篇九
+　　小白兔、小刺猬、小花猫、小鸭子和小狗是好朋友，它们经常在一起玩。
+
+　　一天，小狗生病了，住进了医院，小狗虽然躺在温暖的房间里，但是感到很寂寞，孤单极了，它非常想念它的好朋友们。
+
+　　小鸭子知道了，一摇一摆的赶来医院，给小狗带来一束鲜花，祝它早日康复，小狗高兴地笑了。
+
+　　小白兔知道了，给小狗送上一根长长的胡萝卜，并且陪小狗聊起了天，小狗开心的接受了，感觉轻松了很多。
+
+　　小花猫知道了，给小狗端上一碗已经做好的香喷喷的鱼，小狗乐极了。
+
+　　小刺猬知道了，给小狗带来几根大大的肉骨头，小狗感动极了。
+
+　　在大家的关心和照顾下，小狗的病很快就好了。
+
+　　
+
+10.六年级学生适合听的睡前故事 篇十
+　　嘟噜猪最喜欢过年了，每到过年，爸爸妈妈都会给他买很多的鞭炮。放鞭炮真好玩。
+
+　　盼望着，盼望着，终于过年了。“新年到，放鞭炮。”瞧，嘟噜猪正唱着歌儿找小伙伴们放鞭炮呢！
+
+　　嘟噜猪来到绿乌龟家的院子里，看见绿乌龟正在打扫卫生，嘟噜猪便点燃了一只鞭炮，往绿乌龟腿下一扔，“砰”的一声，绿乌龟吓了一跳。
+
+　　“要是你把我的腿炸伤了，怎么办？”绿乌龟一脸不悦地说。
+
+　　“对不起，对不起！”嘟噜猪说完，拉着绿乌龟去找小猴子一起放鞭炮。
+
+　　嘟噜猪和绿乌龟来到小猴子家。小猴子正在贴春联，见嘟噜猪和绿乌龟来了，说：“帮我看看春联贴得对称吗？”
+
+　　“哦，让我来看看。”嘟噜猪一边看对联，一边从口袋里拿出鞭炮，假装把火往炮芯上一碰，然后把鞭炮放进了小猴子的口袋。
+
+　　“鞭炮，鞭炮……小猴子，你口袋里的鞭炮！”绿乌龟看见嘟噜猪往小猴子口袋放鞭炮，紧张得不行。小猴子比嘟噜猪还要调皮，他从口袋里掏出鞭炮来，高兴地说：“你送我鞭炮，可不要把我的.口袋炸烂了呀！”
+
+　　“鞭炮怎么不响呢？”绿乌龟疑惑地问。
+
+　　“哈哈哈，我还没有点燃呢。”嘟噜猪笑着说。
+
+　　这时，一只小鸭子提了一个崭新的灯笼走过来。
+
+　　“多么漂亮的灯笼呀！”嘟噜猪和小猴子上前围住了小鸭子。
+
+　　“你说，鞭炮放到这个灯笼里会怎样呢？”嘟噜猪眨了眨眼睛说。
+
+　　“肯定会把灯笼炸开花。”小猴子得意地说。“那我们试一试。”嘟噜猪说完就从口袋里拿出鞭炮来。
+
+　　“哼！你们想弄坏我的灯笼？”小鸭子气呼呼地走开了。
+
+　　“我们把鞭炮放到泥巴里，炸开个泥巴花。”小猴子建议。
+
+　　于是，三个小伙伴跑到水沟边，将鞭炮插到泥巴里点燃。
+
+　　“砰！”虽然他们离得很远，但泥巴还是飞溅到他们的衣服上。
+
+　　“不好玩！不好玩！弄脏衣服不好玩。”绿乌龟嚷嚷道。
+
+　　“那我们来个更刺激的，我们把鞭炮扔进下水道里，看看它的威力。”嘟噜猪看见路边有一个掀开的窨井盖，点燃手中的鞭炮便扔进下水道。
+
+　　这时，正在路边执勤的大熊警长见此情形，以迅雷不及掩耳之势把嘟噜猪扑倒在地。只听到一声巨响，下水道里爆炸了。
+
+　　小猴子和绿乌龟看到这样的情景，惊魂未定，吓得直打哆嗦。
+
+　　“还好，你们都没事。你们以后千万别往下水道里扔爆竹，因为下水道里聚集着大量的沼气，一旦点燃，就会爆炸。”
+
+　　“对不起，大熊警长，以后我再也不会犯这样的错误了。”嘟噜猪惭愧地低下了头。
+
+　　
+
+11.六年级学生适合听的睡前故事 篇十一
+　　“噼噼啪！”小蛋壳裂开了，钻出一只毛茸茸的鸡宝宝。鸡妈妈带着鸡宝宝去散步。刮风了，鸡妈妈张开大翅膀，鸡宝宝赶快钻进去。这是它的新家呀。
+
+　　小蛋壳有点孤单。“现在我不是鸡宝宝的家了。对了，我再去找一个小宝宝，做它的家。”它咕噜咕噜滚走了。
+
+　　一只蜜蜂在采花粉。“蜜蜂宝宝，我做你的.新家吧！”“谢谢你，小蛋壳。我不是蜜蜂宝宝，我是蜜蜂阿姨。我的家在大树上，那个圆圆的蜂巢就是我的家。”
+
+　　一只蚂蚁在拖虫子。“蚂蚁宝宝，我做你的新家吧！”“谢谢你，小蛋壳。我不是蚂蚁宝宝，我是蚂蚁姐姐。我的家在田埂上，那个小小的泥洞就是我的家。”
+
+　　一只小青蛙在唱歌。“青蛙宝宝，我做你的新家吧！”“谢谢你，小蛋壳。我不是青蛙宝宝，我是青蛙哥哥。我的家在前面的小池塘里。”
+
+　　一只小蜗牛在散步。“蜗牛宝宝，我做你的新家吧！”“谢谢你，小蛋壳。我有家呀，你看我的家在背上呢。”
+
+　　谁也不要它，小蛋壳有点难过。一只金龟子路过这里。“太好啦，我的宝宝正缺个摇篮，这只蛋壳做摇篮刚刚好！”金龟子衔来一片花瓣铺在小蛋壳里面。多舒服呀！
+
+　　“快快睡，小宝贝。”金龟子向睡在蛋壳摇篮里的小宝宝唱起了歌。小蛋壳听着听着，也睡着啦。
+
+　　
+
+12.六年级学生适合听的睡前故事 篇十二
+　　小猪盖了座新房子，他想给房子涂上颜色，可是涂什么颜色好呢？还是请朋友们帮我出出主意吧！
+
+　　他问小羊，小羊说：“绿色的房子，绿油油，绿色一定很好看！”他问小狗，小狗说：“黄色的房子，金灿灿，黄色一定很漂亮。”
+
+　　他问公鸡，公鸡说：“红色的房子，红彤彤，红色一定很美丽。”他问小兔，小兔说：“白色的房子，雪白雪白，一定很棒！”
+
+　　小猪摸了摸脑袋，心想：朋友们说的颜色都很漂亮，但到底该涂哪种呢？
+
+　　我知道啦！他眼珠子一转，有了好主意：“你们的颜色都很好，就照你们说的办，到时候，请你们来做客！”
+
+　　小猪在新房子屋顶周围播下了一粒粒种子。春天，种子发芽了，屋顶上盖满了绿油油的叶子。小羊说：“绿色的房子真好看。”
+
+　　夏天，新房子上开满了金灿灿的小黄花儿，小狗说：“黄色的房子真漂亮。”
+
+　　秋天，新房子上挂满了红彤彤的果子，公鸡说：“红色的房子最美丽。”冬天，新房子上铺满了厚厚的白雪。
+
+　　小兔说：“哇，白色的房子太棒了！”小猪听了好伙伴们的话，甜甜地笑了。
+
+　　
+
+13.六年级学生适合听的睡前故事 篇十三
+　　胖胖豚非常喜欢画画，看到喜欢的景色就会用画纸记录下来。
+
+　　一天，胖胖豚拿着画板在森林里画画，看到途途龟在河边钓鱼，胖胖豚悄悄地在途途龟旁边画画，把途途龟钓鱼时的样子画下来。
+
+　　画好后，胖胖豚开心地拿着画纸跑到途途龟身边对途途龟说：“途途龟，送给你。”
+
+　　途途龟接过画纸，惊讶的说：“哇！胖胖豚，你画的好漂亮啊！太喜欢了，好羡慕你哦！。”
+
+　　胖胖豚拿着画板继续在森林里画画，看到坐坐羊在森林里捉蝴蝶，胖胖豚把坐坐羊捉蝴蝶时的样子画下来。
+
+　　画完后，胖胖豚开心地拿着画纸跑到坐坐羊身边对坐坐羊说：“坐坐羊，送给你。”
+
+　　坐坐羊接过画纸，惊讶的说：“哇！胖胖豚，你画的好漂亮啊！太喜欢了，好羡慕你哦！。”
+
+　　胖胖豚得到了小伙伴们的赞赏，非常开心，爱画画的胖胖豚并没有骄傲，依然继续认真的学习画画，相信有一天胖胖豚的画功一定会更好的。
+
+　　
+
+14.六年级学生适合听的睡前故事 篇十四
+　　有一个秋天的早晨，小白兔很早就起床了，玩了一会突然想：今天森林里的好朋友小猴、小熊和小刺猬要到我家来玩，中午我请他们吃什么呢？
+
+　　小白兔马上就有了主意，它就连蹦带跳地到了以前它和妈妈种的那片南瓜地，摘了一个又大又黄的南瓜，它就想把南瓜运回家，可是小白兔用了九牛二虎之力也没能把这个南瓜搬起来，于是它就坐在地上想呀想呀，突然它看见了它的好朋友小刺猬正在向它家滚去，小白兔立刻想到一个好主意：小刺猬卷成一团，就能滚，那南瓜是圆的，它一定也能滚。小白兔叫住了小刺猬，它们俩一起把南瓜竖了起来，然后推着南瓜往小白兔家滚去。
+
+　　这时兔爸爸正着急地等在门口，它想，小白兔这么早到哪里去了呢？
+
+　　突然它看见一个大南瓜正向它们家滚来，把兔爸爸吓了一跳，它看见小白兔和小刺猬在南瓜后面跟着跑来，兔爸爸就明白了，这时兔妈妈走出家门，兔爸爸对兔妈妈说：“你猜，我们家的小宝贝是怎么把这个大南瓜运回家的？”兔妈妈看到门口的`大南瓜，吃惊地问小白兔：“小宝贝，你是怎么把南瓜运回来的？”小刺猬抢着说：“它是看我从山上滚下来的时候才想到的这个办法。”小白兔说：“幸亏有小刺猬在，帮我把南瓜竖起来，不然这个办法也不行了。”兔妈妈说：“你们真棒！”
+
+　　过了一会，小猴、小熊都来了，它们高高兴兴地进了小白兔家，兔妈妈煮了四碗南瓜汤，四个好朋友就坐下来好好地吃了一顿。
+
+　　
+
+15.六年级学生适合听的睡前故事 篇十五
+　　从前，有一只小螳螂，它决定去旅行。
+
+　　可是旅行怎么能没有充足的食物呢？
+
+　　小螳螂犯了愁。
+
+　　小蜜蜂说：“小螳螂，我的花蜜采的.太多了，分给你一点吧！”
+
+　　就这样，小螳螂的食物问题解决了，它背着花蜜，高兴的出发了。
+
+　　走啊走，走啊走，走了很长时间的小螳螂觉得很累很累，它走不动了，在一棵巨大的蒲公英旁坐了下来，蒲公英问：“你要去旅行吗？我正好也要去，我可以载你一程。”
+
+　　就这样，小螳螂抓住巨型蒲公英的茎，晃晃悠悠出发了。
+
+　　蒲公英把它放在一条小河旁，就和它说再见了。可是自己不会游泳，要怎么过河去呢？
+
+　　这时候，一只小乌龟正在河边晒太阳，它说：“小螳螂，我正好要去河对岸，你坐在我的背上，我顺便带你过河去。”
+
+　　就这样，小螳螂坐在乌龟巨大的壳上，朝着河对岸进发了。
+
+　　有那么多的朋友帮助小螳螂，小螳螂看了很多美丽的地方，真幸福呀！</p>
+
+
+
+
+                    
+                    <h3>2. 财务自由的三级进程——财务保障、财务安全、财务自由</h3>
+                    
+                    <p>想一步到达番事业。</p>
+
+
+
+
+
+                    <h3>3. 愿好书陪伴你成长</h3>
+                    
+                    <p>自己想拥有</p>
+
+
+<h3>4.部分收入来源数据</h3>
+
+             <p>收入。这是收入要高。             
+</p>
+
+                
+    <!-- 无障碍通知区域 (供屏幕阅读器 announce 使用) -->
+    <div id="a11y-announcer" aria-live="polite" class="sr-only"></div>
+
+    <!-- 无障碍功能JavaScript -->
+    <script>
+        // 初始化页面设置
+        document.addEventListener('DOMContentLoaded', function() {
+            // 尝试从localStorage加载用户偏好设置
+            loadUserPreferences();
+            
+            // 检查是否有保存的阅读位置
+            checkSavedPosition();
+        });
+        
+        // 字体大小调整功能
+        let currentFontSize = 100; // 百分比
+        
+        document.getElementById('font-increase').addEventListener('click', () => {
+            if (currentFontSize < 160) {
+                currentFontSize += 10;
+                applyFontSize();
+                announceChange(`字体已增大到${currentFontSize}%`);
+            }
+        });
+        
+        document.getElementById('font-decrease').addEventListener('click', () => {
+            if (currentFontSize > 70) {
+                currentFontSize -= 10;
+                applyFontSize();
+                announceChange(`字体已减小到${currentFontSize}%`);
+            }
+        });
+        
+        document.getElementById('font-reset').addEventListener('click', () => {
+            currentFontSize = 100;
+            applyFontSize();
+            announceChange('字体大小已重置为默认值');
+        });
+        
+        function applyFontSize() {
+            document.documentElement.style.fontSize = `${currentFontSize}%`;
+            // 保存到本地存储
+            saveUserPreference('fontSize', currentFontSize);
+        }
+        
+        // 字体类型切换
+        document.getElementById('font-sans').addEventListener('click', () => {
+            setFontFamily('sans');
+            announceChange('已切换为无衬线字体');
+        });
+        
+        document.getElementById('font-serif').addEventListener('click', () => {
+            setFontFamily('serif');
+            announceChange('已切换为衬线字体');
+        });
+        
+        document.getElementById('font-mono').addEventListener('click', () => {
+            setFontFamily('mono');
+            announceChange('已切换为等宽字体');
+        });
+        
+        function setFontFamily(type) {
+            // 移除所有字体类
+            document.body.classList.remove('font-sans-mode', 'font-serif-mode', 'font-mono-mode');
+            // 添加选中的字体类
+            document.body.classList.add(`font-${type}-mode`);
+            // 保存到本地存储
+            saveUserPreference('fontFamily', type);
+        }
+        
+        // 高对比度模式
+        let highContrastMode = false;
+        
+        document.getElementById('high-contrast').addEventListener('click', () => {
+            highContrastMode = !highContrastMode;
+            applyHighContrast();
+            announceChange(highContrastMode ? '已启用高对比度模式' : '已禁用高对比度模式');
+        });
+        
+        function applyHighContrast() {
+            if (highContrastMode) {
+                document.body.classList.add('high-contrast');
+                document.body.style.setProperty('color', 'var(--color-text)');
+                document.body.style.setProperty('background-color', 'var(--color-bg)');
+                document.querySelectorAll('header, nav, article, aside > div').forEach(el => {
+                    el.style.backgroundColor = 'var(--color-bg)';
+                    el.style.color = 'var(--color-text)';
+                    el.style.borderColor = 'var(--color-border)';
+                });
+                document.querySelectorAll('a, button').forEach(el => {
+                    el.style.color = 'var(--color-primary)';
+                });
+            } else {
+                document.body.classList.remove('high-contrast');
+                document.body.style.removeProperty('color');
+                document.body.style.removeProperty('background-color');
+                document.querySelectorAll('header, nav, article, aside > div').forEach(el => {
+                    el.style.removeProperty('background-color');
+                    el.style.removeProperty('color');
+                    el.style.removeProperty('border-color');
+                });
+                document.querySelectorAll('a, button').forEach(el => {
+                    el.style.removeProperty('color');
+                });
+            }
+            // 保存到本地存储
+            saveUserPreference('highContrast', highContrastMode);
+        }
+        
+        // 文本朗读功能
+        let speechSynthesis = window.speechSynthesis;
+        let currentUtterance = null;
+        let isReading = false;
+        let readingProgress = 0;
+        let articleParagraphs = [];
+        
+        document.getElementById('read-aloud').addEventListener('click', startReading);
+        document.getElementById('stop-reading').addEventListener('click', stopReading);
+        
+        function startReading() {
+            // 准备文章段落
+            articleParagraphs = Array.from(document.querySelectorAll('#article-content p, #article-content h2, #article-content h3'));
+            
+            if (articleParagraphs.length === 0) {
+                announceChange('没有可朗读的内容');
+                return;
+            }
+            
+            // 停止任何正在进行的朗读
+            stopReading();
+            
+            // 更新UI状态
+            isReading = true;
+            document.getElementById('read-aloud').classList.add('hidden');
+            document.getElementById('stop-reading').classList.remove('hidden');
+            
+            // 从当前进度开始朗读
+            readNextParagraph();
+            
+            announceChange('开始朗读文章内容');
+        }
+        
+        function readNextParagraph() {
+            if (readingProgress >= articleParagraphs.length) {
+                // 朗读完成
+                stopReading();
+                announceChange('文章朗读已完成');
+                return;
+            }
+            
+            // 获取当前段落
+            const paragraph = articleParagraphs[readingProgress];
+            
+            // 高亮当前正在朗读的段落
+            highlightReadingParagraph(readingProgress);
+            
+            // 创建语音实例
+            currentUtterance = new SpeechSynthesisUtterance(paragraph.textContent.trim());
+            currentUtterance.lang = 'zh-CN';
+            currentUtterance.rate = 0.9; // 语速稍慢，便于理解
+            
+            // 监听朗读结束事件
+            currentUtterance.onend = function() {
+                readingProgress++;
+                readNextParagraph();
+            };
+            
+            // 开始朗读
+            speechSynthesis.speak(currentUtterance);
+        }
+        
+        function highlightReadingParagraph(index) {
+            // 移除所有高亮
+            articleParagraphs.forEach(p => p.classList.remove('bg-yellow-100', 'high-contrast-bg'));
+            
+            // 添加当前高亮
+            if (index < articleParagraphs.length) {
+                articleParagraphs[index].classList.add('bg-yellow-100');
+                if (highContrastMode) {
+                    articleParagraphs[index].classList.add('high-contrast-bg');
+                }
+                
+                // 滚动到当前段落
+                articleParagraphs[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        
+        function stopReading() {
+            if (isReading) {
+                speechSynthesis.cancel();
+                currentUtterance = null;
+                isReading = false;
+                
+                // 移除所有高亮
+                articleParagraphs.forEach(p => p.classList.remove('bg-yellow-100', 'high-contrast-bg'));
+                
+                // 更新UI状态
+                document.getElementById('read-aloud').classList.remove('hidden');
+                document.getElementById('stop-reading').classList.add('hidden');
+                
+                announceChange('已停止朗读');
+            }
+        }
+        
+        // 保存和恢复阅读位置
+        document.getElementById('save-position').addEventListener('click', saveReadingPosition);
+        
+        function saveReadingPosition() {
+            // 获取当前滚动位置
+            const scrollPosition = window.scrollY;
+            
+            // 保存到本地存储
+            localStorage.setItem('readingPosition', scrollPosition);
+            localStorage.setItem('lastArticle', window.location.href);
+            
+            announceChange('已保存当前阅读位置');
+        }
+        
+        function checkSavedPosition() {
+            // 检查是否有保存的位置且是当前文章
+            const lastArticle = localStorage.getItem('lastArticle');
+            if (lastArticle === window.location.href) {
+                const savedPosition = localStorage.getItem('readingPosition');
+                if (savedPosition) {
+                    // 创建恢复位置的按钮
+                    const restoreButton = document.createElement('button');
+                    restoreButton.className = 'fixed bottom-6 right-6 bg-primary text-white p-3 rounded-full shadow-lg focus-visible-outline z-50';
+                    restoreButton.setAttribute('aria-label', '恢复到上次阅读位置');
+                    restoreButton.innerHTML = '<i class="fa fa-bookmark" aria-hidden="true"></i>';
+                    
+                    restoreButton.addEventListener('click', () => {
+                        window.scrollTo(0, parseInt(savedPosition));
+                        document.body.removeChild(restoreButton);
+                        announceChange('已恢复到上次阅读位置');
+                    });
+                    
+                    document.body.appendChild(restoreButton);
+                    
+                    // 3秒后自动隐藏
+                    setTimeout(() => {
+                        if (document.body.contains(restoreButton)) {
+                            restoreButton.style.transition = 'opacity 0.5s';
+                            restoreButton.style.opacity = '0';
+                            setTimeout(() => {
+                                if (document.body.contains(restoreButton)) {
+                                    document.body.removeChild(restoreButton);
+                                }
+                            }, 500);
+                        }
+                    }, 5000);
+                }
+            }
+        }
+        
+        // 辅助函数：向屏幕阅读器发布通知
+        function announceChange(message) {
+            const announcer = document.getElementById('a11y-announcer');
+            // 清空之前的内容
+            announcer.textContent = '';
+            // 使用setTimeout确保屏幕阅读器能捕捉到变化
+            setTimeout(() => {
+                announcer.textContent = message;
+            }, 100);
+        }
+        
+        // 保存用户偏好设置到localStorage
+        function saveUserPreference(key, value) {
+            const preferences = JSON.parse(localStorage.getItem('a11yPreferences') || '{}');
+            preferences[key] = value;
+            localStorage.setItem('a11yPreferences', JSON.stringify(preferences));
+        }
+        
+        // 加载用户偏好设置
+        function loadUserPreferences() {
+            const preferences = JSON.parse(localStorage.getItem('a11yPreferences') || '{}');
+            
+            // 加载字体大小
+            if (preferences.fontSize) {
+                currentFontSize = preferences.fontSize;
+                applyFontSize();
+            }
+            
+            // 加载字体类型
+            if (preferences.fontFamily) {
+                setFontFamily(preferences.fontFamily);
+            }
+            
+            // 加载高对比度模式
+            if (preferences.highContrast) {
+                highContrastMode = preferences.highContrast;
+                applyHighContrast();
+            }
+        }
+    </script>
+</body>
+</html>
