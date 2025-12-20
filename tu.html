@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yi图片数据</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+
+        /* 图片管理区域 - 核心：统一尺寸展示 */
+        .image-manager {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        .manager-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        /* 图片列表：固定列宽，布局整齐 */
+        .image-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 220px); /* 固定列宽，保证卡片整齐 */
+            gap: 25px;
+            justify-content: flex-start;
+        }
+
+        /* 图片卡片：固定尺寸，统一视觉 */
+        .image-card {
+            width: 290px; /* 固定卡片宽度 */
+            height: 290px; /* 固定卡片高度（适配纯图片展示） */
+            border: 1px solid #e4e7ed;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: box-shadow 0.3s, transform 0.3s;
+            background-color: #fff;
+            cursor: pointer; /* 提示图片可点击 */
+        }
+
+        .image-card:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateY(-3px); /* 悬浮交互效果 */
+        }
+
+        /* 图片容器：固定尺寸，保证所有缩略图一致 */
+        .image-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 缩略图：统一尺寸，不变形 */
+        .image-preview {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 填满容器，保持比例，裁剪多余部分 */
+        }
+
+        /* 预览模态框：展示原尺寸图片 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8); /* 深色背景更突出原图 */
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            padding: 20px;
+        }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            /* 不设置固定尺寸，让图片自然展示原尺寸（限制最大宽高避免溢出屏幕） */
+        }
+
+        .modal-img {
+            width: auto; /* 自动宽度，保留原图宽度 */
+            height: auto; /* 自动高度，保留原图高度 */
+            max-width: 100%; /* 不超过模态框宽度 */
+            max-height: 100%; /* 不超过模态框高度 */
+            object-fit: contain; /* 完整展示原图，不裁剪、不变形 */
+            border-radius: 4px;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: #fff;
+            font-size: 30px;
+            cursor: pointer;
+            transition: color 0.3s;
+            z-index: 1000; /* 确保关闭按钮在最上层 */
+        }
+
+        .close-modal:hover {
+            color: #f56c6c; /* 悬浮变色提示 */
+        }
+
+        /* 空状态（若暂无图片） */
+        .empty-state {
+            text-align: center;
+            padding: 50px 0;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #dcdfe6;
+        }
+    </style>
+</head>
+<body>
+    <!-- 图片管理区域 -->
+        <div class="image-list" id="image-list">
+            <!-- 图片卡片通过JS动态渲染，你可自行修改图片数据 -->
+        </div>
+    </div>
+
+    <!-- 预览模态框：展示原尺寸图片 -->
+    <div class="modal" id="preview-modal">
+        <span class="close-modal" id="close-modal">×</span>
+        <div class="modal-content">
+            <img src="" alt="原尺寸图片预览" class="modal-img" id="modal-img">
+        </div>
+    </div>
+
+    <script>
+        // 图片列表数据
+        const imageListData = [
+            {
+                id: 'img_1',
+                imageUrl: 'https://h-9e.github.io/h/Y.jpg' 
+            },
+            {
+                id: 'img_2',
+                imageUrl: 'https://picsum.photos/1000/700' // 原图尺寸1000x700
+            },
+            {
+                id: 'img_3',
+                imageUrl: 'https://picsum.photos/1200/800' // 原图尺寸1200x800
+            },
+            {
+                id: 'img_4',
+                imageUrl: 'https://picsum.photos/600/900' // 原图尺寸600x900
+            }
+        ];
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            bindEvents();
+            renderImageList();
+        });
+
+        // 绑定事件：仅保留图片点击预览和关闭模态框
+        function bindEvents() {
+            // 关闭预览模态框
+            document.getElementById('close-modal').addEventListener('click', closeModal);
+            // 点击模态框背景关闭
+            document.getElementById('preview-modal').addEventListener('click', function(e) {
+                if (e.target === this) closeModal();
+            });
+        }
+
+        // 渲染图片列表（统一尺寸缩略图，无跳转功能）
+        function renderImageList() {
+            const imageListEl = document.getElementById('image-list');
+
+            // 无数据显示空状态
+            if (imageListData.length === 0) {
+                imageListEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📷</div>
+                        <p>暂无图片，请在JS中配置图片地址~</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 有数据时渲染统一尺寸图片卡片（无跳转，可点击预览原图）
+            let html = '';
+            imageListData.forEach(item => {
+                html += `
+                    <div class="image-card" data-id="${item.id}">
+                        <div class="image-wrapper">
+                            <img src="${item.imageUrl}" alt="统一尺寸缩略图" class="image-preview">
+                        </div>
+                    </div>
+                `;
+            });
+
+            imageListEl.innerHTML = html;
+            bindImageClickEvent(); // 绑定图片点击预览事件
+        }
+
+        // 绑定图片点击事件：点击缩略图弹出原尺寸大图
+        function bindImageClickEvent() {
+            document.querySelectorAll('.image-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const imageId = this.getAttribute('data-id');
+                    const imageItem = imageListData.find(item => item.id === imageId);
+                    if (imageItem) {
+                        const modalImg = document.getElementById('modal-img');
+                        const previewModal = document.getElementById('preview-modal');
+                        // 赋值原图地址，展示原尺寸
+                        modalImg.src = imageItem.imageUrl;
+                        previewModal.style.display = 'flex';
+                    }
+                });
+            });
+        }
+
+        // 关闭预览模态框
+        function closeModal() {
+            document.getElementById('preview-modal').style.display = 'none';
+            document.getElementById('modal-img').src = ''; // 清空图片地址
+        }
+    </script>
+</body>
+</html>
