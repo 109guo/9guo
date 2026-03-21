@@ -314,7 +314,7 @@
                 const map = {
                     'r': { 'k': '帅', 'a': '仕', 'b': '相', 'n': '马', 'r': '车', 'c': '炮', 'p': '兵' },
                     'b': { 'k': '将', 'a': '士', 'b': '象', 'n': '马', 'r': '车', 'c': '炮', 'p': '卒' }
-                };
+                    };
                 return map[p[0]][p[1]] || '?';
             }
 
@@ -539,4 +539,6 @@
                                     (killers[1] && b.fromX===killers[1].fromX && b.fromY===killers[1].fromY && b.toX===killers[1].toX && b.toY===killers[1].toY);
                     if (aKiller && !bKiller) return -1;
                     if (!aKiller && bKiller) return 1;
-                    if 
+                    if (a.targetValue !== b.targetValue) return b.targetValue - a.targetValue;
+                    return b.pieceValue - a.pieceValue;
+                });
