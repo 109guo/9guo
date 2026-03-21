@@ -542,3 +542,233 @@
                     if (a.targetValue !== b.targetValue) return b.targetValue - a.targetValue;
                     return b.pieceValue - a.pieceValue;
                 });
+﻿                if (maximizing) {
+                    let maxEval = -Infinity;
+                    for (let move of moves) {
+                        const newBoard = applyMove(boardState, move.fromX, move.fromY, move.toX, move.toY);
+                        const evalScore = alphaBeta(newBoard, depth-1, alpha, beta, false, aiColor, currentDepth+1);
+                        maxEval = Math.max(maxEval, evalScore);
+                        alpha = Math.max(alpha, evalScore);
+                        if (beta <= alpha) {
+                            if (move.targetValue === 0) {
+                                if (!killerMoves[currentDepth]) killerMoves[currentDepth] = [null, null];
+                                const k = killerMoves[currentDepth];
+                                if (!k[0]) k[0] = move;
+                                else if (!k[1] && !(k[0].fromX===move.fromX && k[0].fromY===move.fromY && k[0].toX===move.toX && k[0].toY===move.toY)) k[1] = move;
+                            }
+                            break;
+                        }
+                    }
+                    return maxEval;
+                } else {
+                    let minEval = Infinity;
+                    for (let move of moves) {
+                        const newBoard = applyMove(boardState, move.fromX, move.fromY, move.toX, move.toY);
+                        const evalScore = alphaBeta(newBoard, depth-1, alpha, beta, true, aiColor, currentDepth+1);
+                        minEval = Math.min(minEval, evalScore);
+                        beta = Math.min(beta, evalScore);
+                        if (beta <= alpha) {
+                            if (move.targetValue === 0) {
+                                if (!killerMoves[currentDepth]) killerMoves[currentDepth] = [null, null];
+                                const k = killerMoves[currentDepth];
+                                if (!k[0]) k[0] = move;
+                                else if (!k[1] && !(k[0].fromX===move.fromX && k[0].fromY===move.fromY && k[0].toX===move.toX && k[0].toY===move.toY)) k[1] = move;
+                            }
+                            break;
+                        }
+                    }
+                    return minEval;
+                }
+            }
+
+            function getBestMove(boardState, color, depth) {
+                initKillers();
+                const moves = getAllValidMoves(boardState, color);
+                if (moves.length === 0) return null;
+                let bestMoves = [];
+                let bestScore = -Infinity;
+                for (let move of moves) {
+                    const newBoard = applyMove(boardState, move.fromX, move.fromY, move.toX, move.toY);
+                    const score = alphaBeta(newBoard, depth-1, -Infinity, Infinity, false, color, 0);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMoves = [move];
+                    } else if (score === bestScore) {
+                        bestMoves.push(move);
+                    }
+                }
+                return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+            }
+
+            function aiMakeMove(color) {
+                if (gameOver || isAIPlaying) return;
+                const isAITurn = (gameMode === 'ai-black' && color === 'b') || (gameMode === 'ai-red' && color === 'r');
+                if (!isAITurn) return;
+
+                isAIPlaying = true;
+                setTimeout(() => {
+                    if (gameOver) { isAIPlaying = false; return; }
+                    const depth = aiDifficulty;
+                    const bestMove = getBestMove(board, color, depth);
+                    if (!bestMove) {
+                        gameOver = true;
+                        winner = (color === 'r') ? 'b' : 'r';
+                        turnText.innerText = winner === 'r' ? '🔴 红方胜' : '⚫ 黑方胜';
+                        drawBoard();
+                        isAIPlaying = false;
+                        return;
+                    }
+                    const { fromX, fromY, toX, toY } = bestMove;
+                    const boardCopy = board.map(row => row.map(cell => cell));
+                    history.push({ board: boardCopy, currentPlayer, lastMoveFrom: [fromX,fromY], lastMoveTo: [toX,toY] });
+
+                    const piece = board[fromX][fromY];
+                    board[toX][toY] = piece;
+                    board[fromX][fromY] = null;
+
+                    const enemyColor = color === 'r' ? 'b' : 'r';
+                    let enemyKingAlive = false;
+                    for (let r=0; r<ROWS; r++) for (let c=0; c<COLS; c++) {
+                        const p = board[r][c];
+                        if (p && p[0]===enemyColor && p[1]==='k') enemyKingAlive = true;
+                    }
+                    if (!enemyKingAlive) {
+                        gameOver = true;
+                        winner = color;
+                        turnText.innerText = winner === 'r' ? '红方胜' : '黑方胜';
+                    } else {
+                        currentPlayer = enemyColor;
+                        turnText.innerText = currentPlayer === 'r' ? '红方走棋' : '黑方走棋';
+                    }
+                    selectedPiece = null;
+                    drawBoard();
+
+                    if (!gameOver) {
+                        const nextIsAI = (gameMode === 'ai-black' && currentPlayer === 'b') || (gameMode === 'ai-red' && currentPlayer === 'r');
+                        if (nextIsAI) {
+                            setTimeout(() => { aiMakeMove(currentPlayer); }, 150);
+                        }
+                    }
+                    isAIPlaying = false;
+                }, 150);
+            }
+
+            function handleCanvasClick(e) {
+                if (gameOver) return;
+                const isCurrentAITurn = (gameMode === 'ai-black' && currentPlayer === 'b') || (gameMode === 'ai-red' && currentPlayer === 'r');
+                if (isCurrentAITurn) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const canvasX = (e.clientX - rect.left) * scaleX;
+                const canvasY = (e.clientY - rect.top) * scaleY;
+                const col = Math.round((canvasX - OFFSET_X) / GRID_SIZE);
+                const row = Math.round((canvasY - OFFSET_Y) / GRID_SIZE);
+                if (row<0 || row>=ROWS || col<0 || col>=COLS) return;
+
+                if (!selectedPiece) {
+                    const piece = board[row][col];
+                    if (piece && piece[0] === currentPlayer) {
+                        selectedPiece = { row, col, piece };
+                    }
+                } else {
+                    const { row: sRow, col: sCol, piece: sPiece } = selectedPiece;
+                    if (board[row][col] && board[row][col][0] === currentPlayer) {
+                        selectedPiece = { row, col, piece: board[row][col] };
+                        drawBoard();
+                        return;
+                    }
+                    const rawMoves = getPieceRawMoves(board, sRow, sCol, sPiece);
+                    let valid = false;
+                    for (let m of rawMoves) {
+                        if (m.toX === row && m.toY === col) {
+                            const newBoard = applyMove(board, sRow, sCol, row, col);
+                            if (!isKingInCheck(newBoard, currentPlayer) && !hasGeneralsFacing(newBoard)) {
+                                valid = true;
+                            }
+                            break;
+                        }
+                    }
+                    if (valid) {
+                        const boardCopy = board.map(r => r.map(c => c));
+                        history.push({ board: boardCopy, currentPlayer, lastMoveFrom: [sRow,sCol], lastMoveTo: [row,col] });
+
+                        const piece = board[sRow][sCol];
+                        board[row][col] = piece;
+                        board[sRow][sCol] = null;
+
+                        const enemyColor = currentPlayer === 'r' ? 'b' : 'r';
+                        let enemyKingAlive = false;
+                        for (let r=0; r<ROWS; r++) for (let c=0; c<COLS; c++) {
+                            const p = board[r][c];
+                            if (p && p[0]===enemyColor && p[1]==='k') enemyKingAlive = true;
+                        }
+                        if (!enemyKingAlive) {
+                            gameOver = true;
+                            winner = currentPlayer;
+                            turnText.innerText = winner === 'r' ? '红方胜' : '黑方胜';
+                        } else {
+                            currentPlayer = enemyColor;
+                            turnText.innerText = currentPlayer === 'r' ? '红方走棋' : '黑方走棋';
+                        }
+                        selectedPiece = null;
+                        drawBoard();
+
+                        if (!gameOver) {
+                            const nextIsAI = (gameMode === 'ai-black' && currentPlayer === 'b') || (gameMode === 'ai-red' && currentPlayer === 'r');
+                            if (nextIsAI) {
+                                setTimeout(() => { aiMakeMove(currentPlayer); }, 200);
+                            }
+                        }
+                    } else {
+                        selectedPiece = null;
+                    }
+                }
+                drawBoard();
+            }
+
+            function undoMove() {
+                if (history.length === 0) return;
+                if (isAIPlaying) return;
+                const last = history.pop();
+                board = last.board.map(row => row.map(cell => cell));
+                currentPlayer = last.currentPlayer;
+                selectedPiece = null;
+                gameOver = false;
+                winner = null;
+                turnText.innerText = currentPlayer === 'r' ? '红方走棋' : '黑方走棋';
+                drawBoard();
+                if (!gameOver) {
+                    const nextIsAI = (gameMode === 'ai-black' && currentPlayer === 'b') || (gameMode === 'ai-red' && currentPlayer === 'r');
+                    if (nextIsAI) {
+                        setTimeout(() => { aiMakeMove(currentPlayer); }, 200);
+                    }
+                }
+            }
+
+            function restartGame() {
+                if (isAIPlaying) return;
+                initBoard();
+                drawBoard();
+                if (gameMode === 'ai-black' && currentPlayer === 'b') aiMakeMove('b');
+                else if (gameMode === 'ai-red' && currentPlayer === 'r') aiMakeMove('r');
+            }
+
+            canvas.addEventListener('click', handleCanvasClick);
+            undoBtn.addEventListener('click', undoMove);
+            restartBtn.addEventListener('click', restartGame);
+            modeSelect.addEventListener('change', (e) => {
+                gameMode = e.target.value;
+                restartGame();
+            });
+            difficultySelect.addEventListener('change', (e) => {
+                aiDifficulty = parseInt(e.target.value, 10);
+            });
+
+            initBoard();
+            drawBoard();
+        })();
+    </script>
+</body>
+</html>
